@@ -1,25 +1,42 @@
-# akka_streams_vs_rx_reactor
-**_Akka Streams_ vs _RxJava2_ & _Project Reactor_**
+<!---
+Copyright (c) 2019 Artur Jabłoński
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+# **_Akka Streams_ vs _Project Reactor_ (and RxJava2)**
 
 In this write up I will explore some differences
 between __2 API designs__ of __3 reactive streams specification implementations__
 available for Java: _Akka Streams_, _RxJava2_ and _Project Reactor_.
 
-
 Some familiarity with reactive streams is assumed. 
-If you haven't heard about reactive streams, [this is a great article about them]
-(https://gist.github.com/staltz/868e7e9bc2a7b8c1f754). You can also have a look
-at _Java_ [reactive streams interfaces specfication] 
-(https://github.com/reactive-streams/reactive-streams-jvm/blob/v1.0.2/README.md)
+If you haven't heard about reactive streams, [this is a great article about them](https://gist.github.com/staltz/868e7e9bc2a7b8c1f754). 
+You can also have a look
+at _Java_ [reactive streams interfaces specfication](https://github.com/reactive-streams/reactive-streams-jvm/blob/v1.0.2/README.md)
 
 I have more experience with _RxJava2_ and _Project Reactor_ than I have
 with _Akka Streams_. In fact I've run away scared many times after
-starting reading the _Akka Streams_ documentation. Reactive streams
+starting reading the [_Akka Streams_ documentation](https://doc.akka.io/docs/akka/current/stream/index.html).
+Reactive streams
 programming is already hard as it is and _Akka Streams_ learning curve
 seemed a bit steeper than those other libs out there. However, 
 after finding some extra time to play with _Akka Streams_... I still
 think its learning curve is steeper, BUT I started
-appreciating the reason why. 
+appreciating the reason why. I hope this write up will make understanding
+_Akka Streams_ easier for those who know _Reactor_ (or RxJava2) and for those
+who don't that it will serve as an introductory/intermediate material for both
+libraries with some comparison between them.  
 
 All the code samples used here are available in the repository as _JUnit_
 tests. I used the latest release versions of the libs that were available
@@ -31,10 +48,10 @@ and **2.5.23** for _Akka Streams_.
 I put _RxJava2_ and _Project Reactor_ together, because they are very similar
 in their APIs and if you know one it's very easy to switch to the other.
 The main abstractions here are `Flowable<T>` for _RxJava2_ and `Flux<T>` for _Project Reactor_.
-In this article I will be using Project Reactor for examples, but it should be 
-for most parts interchangeable with _RxJava_.
+In this article I will be using _Project Reactor_ for examples, but it should be 
+for most parts interchangeable with _RxJava2_.
 
-`Flux<T>` represent a stream of type T. Once you have an instance of a stream you 
+`Flux<T>` represent a stream of type `T`. Once you have an instance of a stream you 
 can apply one of many available operators that are defined on `Flux` to express the
 transformations of the data.
 
@@ -45,8 +62,10 @@ Flux.range(0,10)
     .filter(i -> i > 10)
     .take(2);
 ```
-All operators return some `Flux<U>` instance that can have further operations 
-chained.
+Here we start with a range of 10 values starting from 0, we then use `map` to
+duplicate each one, then we use `filter` to pass through only those greater
+than 10 and then we'll `take` the first two such numbers. Each operator
+returns an instance of `Flux` that can be further transformed.
 
 Once all the transformations are expressed via operation chaining what you get
 is a blueprint of the stream, that is, there's no data actually flowing yet. 
@@ -80,8 +99,8 @@ Here we just changed `map` to `flatMap`, the lambda passed as parameter to the
 `flatMap` returns a `Flux`, but if `Flux` is a blueprint and we don't call 
 `subscribe(...)` on it, then how it is executed? Well, it's the `flatMap` itself
 that is subscribing to it and then emits out whatever the `Flux` emits. In this
-trivial example, the `Flux` just returns a single value calculated inline, but 
-it could very well execute an asynchronous call(s) to some external system. `flatMap`
+trivial example, the `Flux.just(...)` returns a single value calculated inline, but 
+it could very well execute an asynchronous call(s) to some external system(s). `flatMap`
 is coordinating the subscriptions to the streams returned by the lambda. It can 
 subscribe to multiple such streams at once and all this behaviour forms the semantics
 of the operator. There are many other operators that use such nested/inner streams.
@@ -98,7 +117,7 @@ There are other abstractions with multiple inputs outputs, but we will skip them
 for now for simplicity.
 
 First difference is that unlike in _RxJava2_/_Reactor_ neither of the 
-abstractions in _Akka Streams_ implement the reactive specification interfaces directly.
+abstractions in _Akka Streams_ implement the reactive streams specification interfaces directly.
 The documentation explains that this is by design and that reactive streams specification
 interfaces are treated like SPI and are not "leaked" to the users unless explicitly
 asked for.
@@ -119,7 +138,7 @@ Source.range(0, 10)
       .to(Sink.foreach(System.out::println))
 ```
       
-or using a `Flow` like this:
+or using a `Source` + `Flow` like this:
 ```
 Source.range(0, 10)
       .map(i -> i * 2)
@@ -143,9 +162,10 @@ Flux.range(0, 10)
     )
 
 ```
-Here the lambda inside the `compose` plugs in to the `f` which is the `Flux` instance
-that the `compose` was called on. That `f` represents a stream of some type `In`
-and can transform it to some type `Out`, so it is "kind of" like the `Flow` abstraction.
+Here the lambda inside the `compose` plugs in to the `Flux` instance
+that the `compose` was called on. That `Flux` is represented by te `f` lambda argument.
+So that lambdda takes a `Flux` of some type type `In`
+and can transform it to `Flux` of some type `Out`, so it is "kind of" like the `Flow` abstraction.
 
 Similarly to _Reactor_, all the transformations like the one above are just blueprints
 for what will happen when the stream is run. To run a stream
@@ -154,7 +174,7 @@ are no "loose" inputs/outputs left. When that's the case you then need a `Materi
 which takes a stream
 blueprint and actually executes it. This means that it is possible
 to have different implementations of `Materializer`, though it will
-be no surprise that most of examples use `ActorMaterializer` implementation
+be no surprise that all of examples (that I've ever seen) use `ActorMaterializer` implementation
 that executes streams using (surprise surprise) _Akka Actor System_. 
 
 The `Materializer` abstraction doesn't exist in _Reactor_ where the execution logic
@@ -327,7 +347,7 @@ done.join();
 Similarily to `CompletionStage<Done>` which completes when stream terminates, 
 some components return `CompletionStage<IOResult>` that complete with `IOResult`
 instance that gives some more information about an IO (like the number of bytes
-actually written). One such example is `Source` and `Sink` that can obtained
+actually written). One such example is `Source` and `Sink` that can be obtained
 from the `FileIO` class to stream either from or to a filesystem.
 
 #### `KillSwitch`
@@ -413,12 +433,13 @@ which is to say that a given stream will execute in bounded memory since
 regardless of the response time fluctuations of systems the stream interacts 
 with, there is no need to buffer any data as everything is driven by _demand_.
 
+
 There are plenty of good write ups explaining backpressure, 
 [_Akka Streams_ documentation contains one of them](https://doc.akka.io/docs/akka/current/stream/stream-flows-and-basics.html#back-pressure-explained)
  
-In _Reactor_ backpressure works most of the time. There are some operators 
-that don't honour backpressure. Those are: _interval_, time driven _buffer_
-and time driven _window_. All 3 operators are driven by time and for some reason
+In _Reactor_ backpressure works most of the time. There are some operators however,  
+that don't honour backpressure. Those are: `interval`, time driven `buffer`
+and time driven `window`. All 3 operators are driven by time and for some reason
 the designers of the library decided that the time dimension is more
 important than the backpressure and if your downstream stops signaling
 demand your stream will fail. 
@@ -446,7 +467,7 @@ Flux.range(1, Integer.MAX_VALUE)
 ```
 
 All of the above will fail. You can try to improve the situation by 
-using one of the _onBackpressureXXX_ operators, for example:
+using one of the `onBackpressureXXX` operators, for example:
 
 ```java
  Flux.interval(Duration.ofMillis(1))
@@ -455,15 +476,15 @@ using one of the _onBackpressureXXX_ operators, for example:
      .concatMap(i -> Flux.just(i).delaySubscription(Duration.ofSeconds(1)))
      .blockLast();
 ```
-In the example above we used _onBackpressureBuffer_, the consequence of which 
+In the example above we used `onBackpressureBuffer`, the consequence of which 
 is that the stream looses its boundedness property. Here I deliberately mapped
-every `Integer` coming out of the _interval_ operator to a 1MB byte array.
+every `Integer` coming out of the `interval` operator to a 1MB byte array.
 Because the downstream here is slow the byte arrays will be buffered and pretty
-soon you will see OOME thrown.
+soon you will see `OutOfMemoryException` thrown.
 
 In _Akka Streams_ the backpressure is respected always without exceptions (at
 least that's what the documentation states). 
-Here an equivalent of the Reactor _interval_ example:
+Here an equivalent of the Reactor `interval` example:
 
 ```java
 final ActorSystem system = ActorSystem.create("Test");
@@ -482,11 +503,11 @@ Source.tick(Duration.ZERO, Duration.ofMillis(1), new Object())
       .toCompletableFuture()
       .join();
 ```
-Here the stream would go forever, so that's why _take_ operator is there to terminate
+Here the stream would go forever, so that's why `take` operator is there to terminate
 it after 100 elements. The `flatMapConcat` which is way slower here than the upstream
 will stop sending demand signals to the `tick` operator. It doesn't matter that
 the `tick` is configured to give a "tick" every millisecond, it will respect
-the lack of demand without throwing any exception.
+the lack of _demand_ without throwing any exception.
 
 ## Concurrency
 
@@ -585,11 +606,11 @@ what if you wanted, like in the _Reactor_ example to take advantage of multiple
 cores to perform computations or if you wanted to do (non)blocking IO? 
 
 There are two excelent posts on the subject, which I recommend to go through:
-https://blog.colinbreck.com/maximizing-throughput-for-akka-streams/
-https://blog.colinbreck.com/partitioning-akka-streams-to-maximize-throughput/
++ https://blog.colinbreck.com/maximizing-throughput-for-akka-streams/
++ https://blog.colinbreck.com/partitioning-akka-streams-to-maximize-throughput/
 
 Here I will go through some of the approaches from the articles and render them
-in Java. 
+in _Java_. 
 
 The first trick is to use the `mapAsync` operator, that can manage values
 signaled via `CompletableFuture`. You can then isolate the computation part that
@@ -624,8 +645,8 @@ the latter (since there's no threadpool involved).
 
 The important part of this approach is that your stream continues to be contained
 entirely in one actor instance and is sequential, it's just you now offloaded the
-asynchronous part to a threadpool and you let `mapAsync` manage results of tasks
-run by it.
+asynchronous part to a threadpool and you let `mapAsync` manage results of asynchronous 
+computations run by it.
 
 Another approach would be to use `groupBy` to create a number of `SubFlow` equal 
 to number of available cores:
@@ -671,8 +692,8 @@ _Akka Streams_ provides a different API to express more complex
 stream topologies like broadcasting, balancing, merging or even feedback loops
 (that is stream output feeding back to its input).
  
-Here we'll implement a partitioning of a stream similar to that of `groupBy`
-+ `mergeSubstreams` above. The idea is that we'll implement a `Flow` using the _GraphDSL_
+Here we'll implement a partitioning of a stream similar to that of `groupBy`+ 
+`mergeSubstreams` above. The idea is that we'll implement a `Flow` using the _GraphDSL_
 API that takes concurrency level and another flow that captures the desired computation
 and then plug it in to the linear API via `via` operator. Here's a relatively simple
 example
@@ -686,10 +707,10 @@ private <I, O, M> Flow<I, O, NotUsed> parallelizeFlow(int concurrency,
       b -> {
         UniformFanOutShape<I, I> balance = b.add(Balance.create(concurrency));
         UniformFanInShape<O, O> merge = b.add(Merge.create(concurrency));
-         for (int i = 0; i < concurrency; i++) {
+        for (int i = 0; i < concurrency; i++) {
           b.from(balance).via(b.add(innerFlow.async())).viaFanIn(merge);
         }
-         return FlowShape.of(balance.in(), merge.out());
+        return FlowShape.of(balance.in(), merge.out());
       }
     ));
 }
@@ -736,14 +757,14 @@ In _Project Reactor_ implementing your operator is discouraged, because it's con
 hard and easy to do wrong. A part of the complexity seems to arise form the fact
 that _Project Reactor_ implements the reactive streams interfaces directly
 and that's what you have to do when implementing your own operator.
-If you look back at the _Java_ [specification of the reactive interfaces]((https://github.com/reactive-streams/reactive-streams-jvm/blob/v1.0.2/README.md)
-), you will find them
+If you look back at the _Java_ [specification of the reactive interfaces](https://github.com/reactive-streams/reactive-streams-jvm/blob/v1.0.2/README.md)
+, you will find them
 pretty simple, however if you read the list of rules that govern their interactions,
 you will realize the complexity involved.
 To help testing with implementation there's _Technology Compatibility Kit_ available
 that can run custom implementations against a test suite that checks the constraints
 coming from the spec. You can find it [here](https://github.com/reactive-streams/reactive-streams-jvm/blob/v1.0.2/tck/README.md).
-However you still need to implement it. There are some utility/not documented/subject to change
+However you still need to implement it in the first place. There are some utility/not documented/subject to change
 routines that help you manage demand count or implement correct signaling of elements
 by using a queue draining loop, which is an implementation detail of the built in 
 operators, but you'd need to study the _Reactor_ source code to figure out how to use them. 
@@ -760,8 +781,7 @@ exception that instead of terminating the stream we want to pause it and then
 resume it when we please. There isn't such operator provided in the core library,
 so let's get our hands dirty and implement one.
 
-If you feel lost reading the code snippets, please go to the [Akka Streams documentation]
-(https://doc.akka.io/docs/akka/current/stream/index.html)
+If you feel lost reading the code snippets, please go to the [Akka Streams documentation](https://doc.akka.io/docs/akka/current/stream/index.html)
 that explains in details all the concepts used.
 There's no point repeating it all here, the point is to go through
 some working example.
@@ -781,8 +801,10 @@ ability to return a materialized value. Since we want to plug
 this into a stream returning any datatype we parametrize over it
 with `T`:
 
-    private static class PauseButtonStage<T> extends GraphStageWithMaterializedValue<FlowShape<T, T>, PauseButton>
-   
+```java
+private static class PauseButtonStage<T> extends GraphStageWithMaterializedValue<FlowShape<T, T>, PauseButton>
+```
+
 Then we need to create our input and output and appropriate `Shape`:
 
 ```java
@@ -807,11 +829,15 @@ First we'll create an instance of a `CompletableFuture` of our
 materialized value which is `PauseButton`, I will explain later
 why we can't return the value directly.
         
-    final CompletableFuture<PauseButton> pauseButton = new CompletableFuture<>();
+```java
+final CompletableFuture<PauseButton> pauseButton = new CompletableFuture<>();
+```
 
 Now we can create the actual logic based on our `Shape`:
-    
-    GraphStageLogic logic = new GraphStageLogic(shape())
+
+```java
+GraphStageLogic logic = new GraphStageLogic(shape())
+```    
     
 In the initialize section we will setup the initial behaviour which
 will be 'unpaused' so as if our custom operator was not even
@@ -926,13 +952,15 @@ public void preStart()
 
 Finally we can return the logic and the pause button:
 
-    return new Tuple2<>(logic, pauseButton);
+```java
+return new Tuple2<>(logic, pauseButton);
+```
     
-Alright! So let's put this in a test. We'll create a stream
+Alright! So let's put this to test. We'll create a stream
 that will emit numbers from 0 to 100 throttled to 1 per 350ms.
-We will then plugin our customer operator using `viaMat` to fish
+We will then plugin our custom operator using `viaMat` to fish
 out the materialized value we were preparing. Then we will
-run it with a `foreach` sink that will print out every element
+run it with a `foreach` `Sink` that will print out every element.
 
 ```java
 Pair<CompletionStage<PauseButton>, CompletionStage<Done>> matPair =
@@ -970,7 +998,7 @@ Source.repeat(matPair.first())
 
 ```
 
-and now, since we are running this form JUnit, we need to wait
+and now, since we are running this from _JUnit_, we need to wait
 for the main stream to complete:
 
 ```java
@@ -991,7 +1019,7 @@ thought through covering some pretty complex use cases.
 
 ## Error/Failure handling
 
-A reactive stream can have one of two terminal events. First is
+A reactive stream can emit one of two terminal events. First is
 completion and another is error. After the terminal event, no other events
 are allowed to happen. There are bunch of operators that the libraries provide
 that can be used to handle the error signals and handle them in some way.
@@ -1010,7 +1038,7 @@ Flux.range(-10, 20)
 Here we are creating a range from -10 to 10 and then multiple each item by itself
 and then dividing the result by the element itself again thus yielding the
 same number that we started with, with the exception of 0 that will blow up
-with `div by 0` exception, which is the whole point. Great. 
+with `div by 0` exception, which is the whole point. Great!  
 In our `subscribe` we now have two lambdas, one that handles data
 emissions and simply prints them out and the other handles the error signal
 (remember there can only be one since it's terminal) if it happens. 
@@ -1033,18 +1061,18 @@ Flux.range(-10, 20)
 
 Here we instructed `retry` to capture any error coming from its upstream and 
 then resubscribe up to 3 times to the upstream. This operator is useful when 
-an error is some intermittent network exception, when this sort of resubscription
+an error is intermittent in nature like say network related exception, when this sort of resubscription
 may have a chance of success. Here we will simply trigger the error four times.
 That last fourth exception will be propagated downstream so that it will only 
 be logged once. So from the subscriber's perspective the error only happens once,
-the 'retry' operator basically is not letting through the error signal during the
+the `retry` operator basically is not letting through the error signal during the
 3 attempts and reestablishes the whole upstream. This is invisible to the subscriber.
 There are also `retryWhen` and `retryBackoff` operators that provide similar
 resubscription error handling but with some back off time applied between retries.
 
 Since here the resubscription strategy is not very useful, let's check `onErrorResume`,
 which upon receiving error signal from upstream will call the lambda that's passed
-to it, subscribe to returned Flux and pass the emissions downstream. This effectively
+to it, subscribe to returned `Flux` and pass the emissions downstream. This effectively
 switches to a "secondary" stream when the "primary" terminates with error.
 There is also `onErrorResume` version that lets you target specific exception
 and then there is `onErrorReturn` which differs in that instead of returning
@@ -1061,7 +1089,7 @@ Flux.range(-10, 20)
 ```
 
 So that's all great, but can't we do better? I mean from all the original stream
-it's only the 0 element that will trigger the exception, can't we somehow just
+values it's only the element 0 that will trigger the exception, can't we somehow just
 skip it? Well, yes we can, let's check `onErrorContinue` operator
 
 ```java
@@ -1078,8 +1106,9 @@ Flux.range(-10, 20)
 Nice! It works here just as we wanted it, but there's a dark side to the
 `onErrorContinue` operator. This operator relies on the operators upstream to 
 be aware of how it works and to check some flags, so it won't work with all the
-operators. Also there's some unexpected behaviour when nested streams are involved.
-The example below is adopted from this github issue (https://github.com/reactor/reactor-addons/issues/210
+operators (you need to check Javadoc for operators to figure out which ones support
+it. Also there's some unexpected behaviour when nested streams are involved.
+The example below is adopted from [this github issue.](https://github.com/reactor/reactor-addons/issues/210
 )
 
 ```java
@@ -1132,7 +1161,7 @@ that the error handling strategy kicks in before an error is emitted to the stre
 So from the reactive streams perspective this error has never happened anywhere...
 magic. To prove this point let's try something funky and let's try to take that 
 _Akka Streams_ definition up to the `map` and plug it in as a `Publisher` to 
-`Reactor` subscriber and see where it gets us, which will also serve as an example
+_Reactor_ subscriber and see where it gets us, which will also serve as an example
 of how to do such thing in the first place.
 
 ```java
@@ -1173,13 +1202,14 @@ of _Project Reactor_. They are all well documented, so have a look.
 ## Testing
 
 In terms of testing both libraries provide similar facilities where you 
-can plugin a special component (StepVerifier for ProjectReactor and TestProbe
+can plugin a special component (`StepVerifier` and `TestPublisher` for _Project Reactor_ 
+and `TestProbe` and `TestSink`
 for Akka Streams) to then assert on emissions, errors, completions, etc. 
 
-One cool feature that Project Reactor has is the concept of virtual time,
-where testing of strems that involve things like delays or retries with backoff
+One cool feature that _Project Reactor_ has is the concept of virtual time,
+where testing of streams that involve things like delays or retries with backoff
 super easy and fast as you can switch "wall time" based schedulers to "virtual time"
-schedulers in a breeze. I don't think any such facility exists for Akka Streams.
+schedulers in a breeze. I don't think any such facility exists for _Akka Streams_.
 
 ## Distributing stream
 
@@ -1195,27 +1225,33 @@ surprisingly simple and is well documented in the reference documentation.
 
 What is not supported is an automated distribution say in a way _Persistent Actors_
 can be distributed accross cluster using _Cluster Sharding_. It's a manual process. 
-Though seeing that Apache Flink for example has a binary dependency on Akka Streams I wonder
+Though seeing that _Apache Flink_ for example has a binary dependency on _Akka Streams_ I wonder
 if they don't use this mechanism under the hood to implement the distribution 
 of stream processing. I couldn't google up anything that would confirm or deny it.
   
-### Summary:
+## Summary:
 In this write up I went through various features of 2 API designs of reactive
-streams available for _Java.
+streams available for _Java_.
 
 _Project Reactor_ is easier to start with. The documentation, community support, 
 and a lot of examples everywhere make learning a good experience. Also since
-the project is powering reactive web stack of Spring framework alias WebFlux it is here
+the project is powering reactive web stack of _Spring Framework_ (aka _WebFlux_) it is here
 to stay. On the downside you may need to look for workarounds if you hit one of 
-the design issues that seem to go against the reactive specification like the lack
+the design issues that seem to go against the reactive streams specification like the lack
 of backpressure support for some operators or the weird `onErrorContinue` operator
-behaviour.
+behaviour. If your stream topology goes wildly beyond linear with feedback loops
+or bidirectional flows, then the API will fall short. 
 
 _Akka Streams_ has a really thought out API(s) that allow you to build very complex
 stream topologies. This flexibility comes at a cost of API complexity, some of which
 is addressed by splitting API into most common and simpler "linear streams" API and
-more complex GraphDSL API. _Akka Streams_ is definitely harder to pick up, especially 
-if you're not that familiar with Scala as it is the language most examples out there
-are using. _Akka Streams_ offer powerful features like stream distribution, per operator
+more complex _GraphDSL_ API. _Akka Streams_ is definitely harder to pick up, especially 
+if you're not that familiar with _Scala_ as it is the language most examples out there
+are using. Also, if you're not familiar with _Akka Actors_ that _Akka Streams_ build
+on, you probably want to at least understand the basic ideas behind them, which is extra
+effort. _Akka Streams_ offer powerful features like stream distribution, per operator
 error handing strategies, no-exception backpressure support, custom operator implementation
-made (relatively) easy.      
+made (relatively) easy. [_Akka Http_](https://doc.akka.io/docs/akka-http/current/index.html) 
+project is a fully blown HTTP server and client
+library built entirely on _Akka Streams_ and projects like [_Play_](https://www.playframework.com/documentation/2.7.x/Home)
+or [_Lagom_](https://www.lagomframework.com/documentation/) build on top of _Akka Http_.    
