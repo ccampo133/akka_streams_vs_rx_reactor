@@ -23,7 +23,7 @@ available for Java: _Akka Streams_, _RxJava2_ and _Project Reactor_.
 Some familiarity with reactive streams is assumed. 
 If you haven't heard about reactive streams, [this is a great article about them](https://gist.github.com/staltz/868e7e9bc2a7b8c1f754). 
 You can also have a look
-at _Java_ [reactive streams interfaces specfication](https://github.com/reactive-streams/reactive-streams-jvm/blob/v1.0.2/README.md)
+at _Java_ [reactive streams interfaces specification](https://github.com/reactive-streams/reactive-streams-jvm/blob/v1.0.2/README.md)
 
 I have more experience with _RxJava2_ and _Project Reactor_ than I have
 with _Akka Streams_. In fact I've run away scared many times after
