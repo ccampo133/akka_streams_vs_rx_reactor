@@ -34,7 +34,7 @@ seemed a bit steeper than those other libs out there. However,
 after finding some extra time to play with _Akka Streams_... I still
 think its learning curve is steeper, BUT I started
 appreciating the reason why. I hope this write up will make understanding
-_Akka Streams_ easier for those who know _Reactor_ (or RxJava2) and for those
+_Akka Streams_ easier for those who know _Reactor_ (or _RxJava2_) and for those
 who don't that it will serve as an introductory/intermediate material for both
 libraries with some comparison between them.  
 
