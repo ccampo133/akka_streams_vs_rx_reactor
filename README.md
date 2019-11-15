@@ -1,19 +1,3 @@
-<!---
-Copyright (c) 2019 Artur Jabłoński
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-   http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-
 # **_Akka Streams_ vs _Project Reactor_ (and RxJava2)**
 
 In this write up I will explore some differences
@@ -38,7 +22,7 @@ _Akka Streams_ easier for those who know _Reactor_ (or _RxJava2_) and for those
 who don't that it will serve as an introductory/intermediate material for both
 libraries with some comparison between them.  
 
-All the code samples used here are available in the repository as _JUnit_
+All the code samples used here are available in this git [repository](https://gitlab.com/artur.jablonski.pl/akka_streams_vs_rx_reactor) as _JUnit_
 tests. I used the latest release versions of the libs that were available
 at the time of writing which is **3.2.10-RELEASE** for _Project Reactor_
 and **2.5.23** for _Akka Streams_. 
